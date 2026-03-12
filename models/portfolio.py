@@ -80,3 +80,21 @@ class Portfolio:
                 "Cost Basis": a.transaction_value, "Price Now": cp, "Market Value": cv,
                 "P&L ($)": pnl, "P&L (%)": pp})
         return pd.DataFrame(rows)
+
+    def weights_table(self, group_by=None):
+        df = self.insights_table(); total = df["Market Value"].sum()
+        if group_by in ("sector", "asset_class"):
+            col = "Sector" if group_by == "sector" else "Asset Class"
+            g = df.groupby(col).agg(Cost_Basis=("Cost Basis", "sum"), Market_Value=("Market Value", "sum")).reset_index()
+            g.columns = [col, "Cost Basis", "Market Value"]
+            g["Weight (%)"] = (g["Market Value"] / total * 100).round(2)
+            g["P&L ($)"] = (g["Market Value"] - g["Cost Basis"]).round(2)
+            t = pd.DataFrame([{col: "TOTAL", "Cost Basis": g["Cost Basis"].sum(),
+                "Market Value": g["Market Value"].sum(), "Weight (%)": 100.0, "P&L ($)": g["P&L ($)"].sum()}])
+            return pd.concat([g, t], ignore_index=True)
+        r = df[["Ticker", "Name", "Cost Basis", "Market Value"]].copy()
+        r["Weight (%)"] = (r["Market Value"] / total * 100).round(2)
+        r["P&L ($)"] = (r["Market Value"] - r["Cost Basis"]).round(2)
+        t = pd.DataFrame([{"Ticker": "TOTAL", "Name": "", "Cost Basis": r["Cost Basis"].sum(),
+            "Market Value": r["Market Value"].sum(), "Weight (%)": 100.0, "P&L ($)": r["P&L ($)"].sum()}])
+        return pd.concat([r, t], ignore_index=True)

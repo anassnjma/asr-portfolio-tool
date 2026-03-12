@@ -66,3 +66,17 @@ class Portfolio:
         fmt = {"M": "%Y-%m", "ME": "%Y-%m", "QE": "%Y-Q%q", "Q": "%Y-Q%q", "YE": "%Y", "Y": "%Y"}
         ret.index = ret.index.strftime(fmt.get(freq, "%Y-%m"))
         return ret
+
+    def insights_table(self):
+        if not self._current_prices: self.refresh_market_data()
+        rows = []
+        for a in self.assets:
+            cp = self.current_price(a.ticker)
+            cv = round(a.quantity * cp, 2) if cp else None
+            pnl = round(cv - a.transaction_value, 2) if cv else None
+            pp = round((cv / a.transaction_value - 1) * 100, 2) if cv and a.transaction_value else None
+            rows.append({"Ticker": a.ticker, "Name": self.asset_name(a.ticker), "Sector": a.sector,
+                "Asset Class": a.asset_class, "Qty": a.quantity, "Buy Price": a.purchase_price,
+                "Cost Basis": a.transaction_value, "Price Now": cp, "Market Value": cv,
+                "P&L ($)": pnl, "P&L (%)": pp})
+        return pd.DataFrame(rows)

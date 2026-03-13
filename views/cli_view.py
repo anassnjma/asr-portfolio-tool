@@ -1,0 +1,364 @@
+"""CLI output using Rich for tables and Matplotlib for charts."""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.theme import Theme
+
+from utils.config import OUTPUT_DIR
+
+# Rich console with custom theme
+theme = Theme({
+    "info": "bold green",
+    "warn": "bold yellow",
+    "err": "bold red",
+    "accent": "bold cyan",
+})
+console = Console(theme=theme)
+
+
+# ---------------------------------------------------------------------------
+# Banners & messages
+# ---------------------------------------------------------------------------
+
+LOGO = r"""
+  ╔═══════════════════════════════════════════╗
+  ║       Portfolio Assistant                 ║
+  ║       a.s.r. Vermogensbeheer              ║
+  ╚═══════════════════════════════════════════╝
+"""
+
+
+def print_welcome() -> None:
+    console.print(LOGO, style="accent")
+    console.print(
+        "  Ask any question about your portfolio, or type a command:\n"
+        "  [accent]returns[/accent]  ·  [accent]insights[/accent]  ·  "
+        "[accent]weights[/accent]  ·  [accent]simulate[/accent]  ·  "
+        "[accent]risk[/accent]  ·  [accent]var[/accent]  ·  "
+        "[accent]stress[/accent]  ·  [accent]parity[/accent]  ·  "
+        "[accent]help[/accent]  ·  [accent]quit[/accent]\n"
+    )
+
+
+def print_help() -> None:
+    console.print(Panel(
+        "[accent]returns monthly|quarterly|yearly[/accent]  — Historical returns per asset\n"
+        "[accent]insights[/accent]                         — Full portfolio overview\n"
+        "[accent]weights[/accent]                          — Value & weight per asset\n"
+        "[accent]weights sector|asset_class[/accent]       — Weights grouped by category\n"
+        "[accent]simulate[/accent]                         — Block Bootstrap simulation (15yr)\n"
+        "[accent]risk[/accent]                             — Risk metrics (Sharpe, Sortino, drawdown)\n"
+        "[accent]var[/accent]                              — Value at Risk & Expected Shortfall\n"
+        "[accent]stress[/accent]                           — Stress test against historical crises\n"
+        "[accent]parity[/accent]                           — Risk Parity optimal allocation\n"
+        "[accent]refresh[/accent]                          — Re-fetch market data\n"
+        "[accent]quit[/accent]                             — Exit the application",
+        title="Available Commands",
+        border_style="cyan",
+    ))
+
+
+def print_loading(msg: str) -> None:
+    console.print(f"  [dim]⏳ {msg}[/dim]")
+
+
+def print_error(msg: str) -> None:
+    console.print(f"  [err]✗ {msg}[/err]")
+
+
+def print_info(msg: str) -> None:
+    console.print(f"  [info]✓[/info] {msg}")
+
+
+def print_agent_response(text: str) -> None:
+    """Display the LLM's natural-language answer."""
+    console.print()
+    console.print(Panel(text, border_style="blue", title="💬 Assistant", padding=(1, 2)))
+
+
+# ---------------------------------------------------------------------------
+# Table rendering
+# ---------------------------------------------------------------------------
+
+def render_dataframe(df: pd.DataFrame, title: str = "") -> None:
+    """Render a pandas DataFrame as a formatted Rich table."""
+    table = Table(
+        title=title, show_lines=True,
+        header_style="bold cyan", border_style="dim", pad_edge=True,
+    )
+    for col in df.columns:
+        justify = "right" if _is_numeric_col(df[col]) else "left"
+        table.add_column(str(col), justify=justify)
+
+    for _, row in df.iterrows():
+        table.add_row(*[_format_cell(row[col], col) for col in df.columns])
+
+    console.print()
+    console.print(table)
+    console.print()
+
+
+def _is_numeric_col(series: pd.Series) -> bool:
+    return series.dtype.kind in ("f", "i")
+
+
+def _format_cell(val, col_name: str = "") -> str:
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return "[dim]–[/dim]"
+    if isinstance(val, float):
+        if "P&L" in str(col_name) or "Return" in str(col_name):
+            color = "green" if val >= 0 else "red"
+            prefix = "+" if val > 0 else ""
+            if "%" in str(col_name):
+                return f"[{color}]{prefix}{val:.2f}%[/{color}]"
+            return f"[{color}]{prefix}{val:,.2f}[/{color}]"
+        return f"{val:,.2f}"
+    return str(val)
+
+
+# ---------------------------------------------------------------------------
+# Matplotlib setup
+# ---------------------------------------------------------------------------
+
+def _get_plt():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    plt.style.use("seaborn-v0_8-whitegrid")
+    return plt
+
+
+# ---------------------------------------------------------------------------
+# Chart: Simulation fan chart
+# ---------------------------------------------------------------------------
+
+def plot_simulation(sim_result: dict) -> str:
+    plt = _get_plt()
+    paths = sim_result["paths"]
+    n_days = paths.shape[1]
+    years = n_days // 252
+    x = np.arange(n_days)
+
+    fig, ax = plt.subplots(figsize=(14, 6))
+    for plo, phi, a in [(5, 95, 0.12), (25, 75, 0.25)]:
+        ax.fill_between(
+            x, np.percentile(paths, plo, axis=0), np.percentile(paths, phi, axis=0),
+            alpha=a, color="#2563eb", label=f"{plo}th–{phi}th pctl",
+        )
+    ax.plot(x, np.percentile(paths, 50, axis=0), color="#2563eb", lw=2.5, label="Median")
+    ax.axhline(sim_result["initial_value"], color="#dc2626", ls="--", lw=1.2, label="Starting value")
+
+    ax.set_xticks([i * 252 for i in range(years + 1)])
+    ax.set_xticklabels([f"Year {i}" for i in range(years + 1)], fontsize=9)
+    ax.set_title(f"Block Bootstrap Simulation · {years} Years · {paths.shape[0]:,} Paths", fontsize=13, fontweight="bold")
+    ax.set_ylabel("Portfolio Value ($)")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"${v:,.0f}"))
+    ax.legend(loc="upper left", fontsize=9)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+
+    path = str(OUTPUT_DIR / "simulation.png")
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print_info(f"Chart saved → [accent]{path}[/accent]")
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Chart: Returns heatmap
+# ---------------------------------------------------------------------------
+
+def plot_returns_heatmap(returns_df: pd.DataFrame, freq_label: str) -> str:
+    plt = _get_plt()
+    fig, ax = plt.subplots(figsize=(
+        max(10, len(returns_df.columns) * 1.4),
+        max(4, len(returns_df) * 0.4),
+    ))
+    im = ax.imshow(returns_df.values, aspect="auto", cmap="RdYlGn", interpolation="nearest")
+    ax.set_xticks(range(len(returns_df.columns)))
+    ax.set_xticklabels(returns_df.columns, rotation=45, ha="right", fontsize=9)
+    ax.set_yticks(range(len(returns_df.index)))
+    ax.set_yticklabels(returns_df.index, fontsize=9)
+    for i in range(len(returns_df.index)):
+        for j in range(len(returns_df.columns)):
+            v = returns_df.iloc[i, j]
+            if not np.isnan(v):
+                ax.text(j, i, f"{v:.1f}", ha="center", va="center", fontsize=7)
+    ax.set_title(f"{freq_label} Returns (%)", fontsize=13, fontweight="bold")
+    fig.colorbar(im, ax=ax, label="Return (%)", shrink=0.8)
+    fig.tight_layout()
+
+    path = str(OUTPUT_DIR / "returns_heatmap.png")
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print_info(f"Chart saved → [accent]{path}[/accent]")
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Chart: Weights pie
+# ---------------------------------------------------------------------------
+
+def plot_weights_pie(weights_df: pd.DataFrame, group_label: str) -> str:
+    plt = _get_plt()
+    df = weights_df[weights_df.iloc[:, 0] != "TOTAL"].copy()
+    labels = df.iloc[:, 0].values
+    sizes = df["Weight (%)"].values
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    colors = plt.cm.Set3(np.linspace(0, 1, len(labels)))
+    ax.pie(sizes, labels=labels, autopct="%1.1f%%", colors=colors, pctdistance=0.80, startangle=90)
+    ax.set_title(f"Portfolio Weights ({group_label})", fontsize=13, fontweight="bold")
+    fig.tight_layout()
+
+    filename = f"weights_{group_label.replace(' ', '_')}.png"
+    path = str(OUTPUT_DIR / filename)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print_info(f"Chart saved → [accent]{path}[/accent]")
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Chart: VaR histogram with risk thresholds
+# ---------------------------------------------------------------------------
+
+def plot_var_histogram(var_result: dict) -> str:
+    """Plot return distribution with VaR and CVaR thresholds marked."""
+    plt = _get_plt()
+    returns = var_result["returns"] * 100  # convert to percentage
+    conf = var_result["confidence"]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Histogram of daily returns
+    ax.hist(returns, bins=100, density=True, alpha=0.6, color="#64748b", edgecolor="none", label="Daily returns")
+
+    # Mark VaR and CVaR lines
+    hist_var = var_result["historical_var"] * 100
+    hist_cvar = var_result["historical_cvar"] * 100
+    cf_var = var_result["cornish_fisher_var"] * 100
+
+    ax.axvline(hist_var, color="#dc2626", lw=2, ls="--", label=f"Historical VaR ({conf:.0%}): {hist_var:.3f}%")
+    ax.axvline(hist_cvar, color="#ea580c", lw=2, ls=":", label=f"Historical CVaR: {hist_cvar:.3f}%")
+    ax.axvline(cf_var, color="#7c3aed", lw=2, ls="-.", label=f"Cornish-Fisher VaR: {cf_var:.3f}%")
+
+    # Shade the tail
+    ax.axvspan(min(returns), hist_var, alpha=0.15, color="#dc2626")
+
+    ax.set_title(f"Daily Return Distribution with VaR ({conf:.0%})", fontsize=13, fontweight="bold")
+    ax.set_xlabel("Daily Return (%)")
+    ax.set_ylabel("Density")
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+
+    path = str(OUTPUT_DIR / "var_distribution.png")
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print_info(f"Chart saved → [accent]{path}[/accent]")
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Chart: Risk Parity comparison
+# ---------------------------------------------------------------------------
+
+def plot_risk_parity(rp_result: dict) -> str:
+    """Side-by-side bar charts comparing current vs risk parity allocation."""
+    plt = _get_plt()
+
+    tickers = rp_result["tickers"]
+    w_cur = rp_result["current_weights"] * 100
+    w_rp = rp_result["rp_weights"] * 100
+    n = len(tickers)
+    x = np.arange(n)
+    width = 0.35
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Panel 1: Weight comparison
+    ax1.bar(x - width / 2, w_cur, width, color="#94a3b8", label="Current")
+    ax1.bar(x + width / 2, w_rp, width, color="#2563eb", label="Risk Parity")
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(tickers, rotation=45, ha="right", fontsize=9)
+    ax1.set_ylabel("Weight (%)")
+    ax1.set_title("Weight Allocation", fontsize=12, fontweight="bold")
+    ax1.legend(fontsize=9)
+    ax1.grid(True, alpha=0.3, axis="y")
+
+    # Panel 2: Risk contribution comparison
+    rc_df = rp_result["risk_contributions"]
+    rc_cur = rc_df["Current RC (%)"].values
+    rc_rp = rc_df["Risk Parity RC (%)"].values
+    target = 100 / n
+
+    ax2.bar(x - width / 2, rc_cur, width, color="#94a3b8", label="Current")
+    ax2.bar(x + width / 2, rc_rp, width, color="#2563eb", label="Risk Parity")
+    ax2.axhline(target, color="#dc2626", ls="--", lw=1.2, label=f"Equal target ({target:.1f}%)")
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(tickers, rotation=45, ha="right", fontsize=9)
+    ax2.set_ylabel("Risk Contribution (%)")
+    ax2.set_title("Risk Contribution per Asset", fontsize=12, fontweight="bold")
+    ax2.legend(fontsize=9)
+    ax2.grid(True, alpha=0.3, axis="y")
+
+    fig.suptitle("Risk Parity Analysis", fontsize=14, fontweight="bold", y=1.02)
+    fig.tight_layout()
+
+    path = str(OUTPUT_DIR / "risk_parity.png")
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print_info(f"Chart saved → [accent]{path}[/accent]")
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Chart: Stress test bar chart
+# ---------------------------------------------------------------------------
+
+def plot_stress_test(stress_df: pd.DataFrame) -> str:
+    """Horizontal bar chart of cumulative returns during crisis periods."""
+    plt = _get_plt()
+
+    # Parse numeric values from formatted strings
+    df = stress_df.copy()
+    df["cum_val"] = df["Cumulative Return"].apply(_parse_pct)
+    df = df.dropna(subset=["cum_val"])
+
+    fig, ax = plt.subplots(figsize=(12, max(4, len(df) * 0.8)))
+
+    colors = ["#dc2626" if v < 0 else "#16a34a" for v in df["cum_val"]]
+    bars = ax.barh(df["Scenario"], df["cum_val"], color=colors, edgecolor="none", height=0.6)
+
+    for bar, val in zip(bars, df["cum_val"]):
+        ax.text(
+            bar.get_width() + (0.5 if val >= 0 else -0.5), bar.get_y() + bar.get_height() / 2,
+            f"{val:+.1f}%", va="center", ha="left" if val >= 0 else "right", fontsize=10,
+        )
+
+    ax.set_xlabel("Cumulative Return (%)")
+    ax.set_title("Stress Test: Portfolio During Historical Crises", fontsize=13, fontweight="bold")
+    ax.axvline(0, color="gray", lw=0.8)
+    ax.grid(True, alpha=0.3, axis="x")
+    ax.invert_yaxis()
+    fig.tight_layout()
+
+    path = str(OUTPUT_DIR / "stress_test.png")
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print_info(f"Chart saved → [accent]{path}[/accent]")
+    return path
+
+
+def _parse_pct(s: str) -> float | None:
+    """Parse a formatted percentage string like '+3.45%' into float."""
+    try:
+        return float(str(s).replace("%", "").replace("+", ""))
+    except (ValueError, TypeError):
+        return None

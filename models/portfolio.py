@@ -98,3 +98,39 @@ class Portfolio:
         t = pd.DataFrame([{"Ticker": "TOTAL", "Name": "", "Cost Basis": r["Cost Basis"].sum(),
             "Market Value": r["Market Value"].sum(), "Weight (%)": 100.0, "P&L ($)": r["P&L ($)"].sum()}])
         return pd.concat([r, t], ignore_index=True)
+
+    def simulate(self, years=SIMULATION_YEARS, n_paths=SIMULATION_PATHS, block_size=BOOTSTRAP_BLOCK_SIZE):
+        """Block Bootstrap simulation. Resamples actual historical returns in blocks."""
+        from scipy.stats import skew, kurtosis
+        _, port_returns, _ = self._get_weights_and_returns()
+        initial_value = float(self.total_value()); total_days = years * TRADING_DAYS_PER_YEAR
+        n_history = len(port_returns)
+        if n_history < block_size: raise ValueError(f"Not enough history for block size.")
+        blocks_per_path = int(np.ceil(total_days / block_size))
+        rng = np.random.default_rng(42); max_start = n_history - block_size
+        start_indices = rng.integers(0, max_start + 1, size=(n_paths, blocks_per_path))
+        all_returns = np.empty((n_paths, total_days))
+        for b in range(blocks_per_path):
+            cs = b * block_size; ce = min(cs + block_size, total_days)
+            if cs >= total_days: break
+            starts = start_indices[:, b]
+            for i in range(ce - cs): all_returns[:, cs + i] = port_returns[starts + i]
+        cumulative = np.cumprod(1 + all_returns, axis=1) * initial_value
+        fv = cumulative[:, -1]; pct_keys = [5, 10, 25, 50, 75, 90, 95]
+        pcts = dict(zip(pct_keys, np.percentile(fv, pct_keys)))
+        prob_loss = float(np.mean(fv < initial_value)) * 100
+        mu = float(np.mean(port_returns)); sigma = float(np.std(port_returns))
+        amu = ((1 + mu) ** TRADING_DAYS_PER_YEAR - 1) * 100; asig = sigma * np.sqrt(TRADING_DAYS_PER_YEAR) * 100
+        stats = pd.DataFrame({"Metric": ["Initial Portfolio Value", "Method",
+            "Annualised Return (historical)", "Annualised Volatility (historical)",
+            "Historical Skewness", "Historical Excess Kurtosis",
+            f"Mean Value ({years}yr)", f"Median Value ({years}yr)",
+            "5th Percentile (worst case)", "25th Percentile", "75th Percentile",
+            "95th Percentile (best case)", "Probability of Loss"],
+            "Value": [f"${initial_value:,.2f}", f"Block Bootstrap (block={block_size}d, paths={n_paths:,})",
+            f"{amu:.1f}%", f"{asig:.1f}%", f"{float(skew(port_returns)):.3f}",
+            f"{float(kurtosis(port_returns)):.3f}", f"${np.mean(fv):,.2f}", f"${pcts[50]:,.2f}",
+            f"${pcts[5]:,.2f}", f"${pcts[25]:,.2f}", f"${pcts[75]:,.2f}", f"${pcts[95]:,.2f}",
+            f"{prob_loss:.1f}%"]})
+        return {"paths": cumulative, "percentiles": pcts, "stats": stats, "initial_value": initial_value,
+            "mean_final": float(np.mean(fv)), "median_final": float(pcts[50]), "annual_mu": amu, "annual_sigma": asig}

@@ -134,3 +134,20 @@ class Portfolio:
             f"{prob_loss:.1f}%"]})
         return {"paths": cumulative, "percentiles": pcts, "stats": stats, "initial_value": initial_value,
             "mean_final": float(np.mean(fv)), "median_final": float(pcts[50]), "annual_mu": amu, "annual_sigma": asig}
+
+    def risk_metrics(self):
+        from scipy.stats import skew, kurtosis
+        _, pr, _ = self._get_weights_and_returns()
+        ar = float(np.mean(pr)) * TRADING_DAYS_PER_YEAR * 100
+        av = float(np.std(pr)) * np.sqrt(TRADING_DAYS_PER_YEAR) * 100
+        sh = (ar / 100 - RISK_FREE_RATE) / (av / 100) if av > 0 else 0
+        c = (1 + pr).cumprod(); rm = np.maximum.accumulate(c)
+        mdd = float(np.min((c - rm) / rm)) * 100
+        ds = pr[pr < 0]; dstd = float(np.std(ds)) * np.sqrt(TRADING_DAYS_PER_YEAR)
+        so = (np.mean(pr) * TRADING_DAYS_PER_YEAR - RISK_FREE_RATE) / dstd if dstd > 0 else 0
+        return pd.DataFrame({"Metric": ["Annualised Return", "Annualised Volatility",
+            "Sharpe Ratio (rf=4%)", "Sortino Ratio (rf=4%)", "Max Drawdown", "Skewness",
+            "Excess Kurtosis", "Best Day", "Worst Day"],
+            "Value": [f"{ar:.2f}%", f"{av:.2f}%", f"{sh:.2f}", f"{so:.2f}", f"{mdd:.2f}%",
+            f"{float(skew(pr)):.3f}", f"{float(kurtosis(pr)):.3f}",
+            f"+{float(np.max(pr))*100:.2f}%", f"{float(np.min(pr))*100:.2f}%"]})

@@ -170,3 +170,28 @@ class Portfolio:
         return {"stats": stats, "returns": pr, "historical_var": hv, "historical_cvar": hc,
             "parametric_var": pvar, "parametric_cvar": pcvar, "cornish_fisher_var": cfv,
             "confidence": confidence, "portfolio_value": pv}
+
+    def stress_test(self):
+        SC = {"Global Financial Crisis (2008)": ("2008-09-01","2009-03-09"),
+            "COVID-19 Crash (2020)": ("2020-02-19","2020-03-23"),
+            "Rate Hike Sell-off (2022)": ("2022-01-03","2022-10-12"),
+            "EU Debt Crisis (2011)": ("2011-07-01","2011-11-25"),
+            "Volmageddon (Feb 2018)": ("2018-01-26","2018-02-08")}
+        prices = fetch_historical_prices(self.tickers, period="max")
+        dr = prices.pct_change().dropna()
+        if not self._current_prices: self.refresh_market_data()
+        mv = np.array([a.quantity * (self.current_price(a.ticker) or 0) for a in self.assets])
+        wts = mv / mv.sum()
+        common = [t for t in self.tickers if t in dr.columns]
+        w = np.array([wts[self.tickers.index(t)] for t in common])
+        rows = []
+        for name, (s, e) in SC.items():
+            try:
+                p = dr[common].loc[s:e]
+                if p.empty:
+                    rows.append({"Scenario":name,"Period":f"{s} to {e}","Days":"N/A","Cumulative Return":"No data","Max Drawdown":"No data","Worst Day":"No data"}); continue
+                pr = p.values @ w; cum = float(np.prod(1+pr)-1)*100
+                c = np.cumprod(1+pr); pk = np.maximum.accumulate(c); mdd = float(np.min((c-pk)/pk))*100
+                rows.append({"Scenario":name,"Period":f"{s} to {e}","Days":len(pr),"Cumulative Return":f"{cum:+.2f}%","Max Drawdown":f"{mdd:.2f}%","Worst Day":f"{float(np.min(pr))*100:.2f}%"})
+            except: rows.append({"Scenario":name,"Period":f"{s} to {e}","Days":"N/A","Cumulative Return":"Error","Max Drawdown":"Error","Worst Day":"Error"})
+        return pd.DataFrame(rows)

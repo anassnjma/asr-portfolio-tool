@@ -151,3 +151,22 @@ class Portfolio:
             "Value": [f"{ar:.2f}%", f"{av:.2f}%", f"{sh:.2f}", f"{so:.2f}", f"{mdd:.2f}%",
             f"{float(skew(pr)):.3f}", f"{float(kurtosis(pr)):.3f}",
             f"+{float(np.max(pr))*100:.2f}%", f"{float(np.min(pr))*100:.2f}%"]})
+
+    def value_at_risk(self, confidence=0.95):
+        from scipy.stats import norm, skew, kurtosis
+        _, pr, _ = self._get_weights_and_returns()
+        pv = self.total_value(); alpha = 1 - confidence
+        hv = float(np.percentile(pr, alpha * 100))
+        tail = pr[pr <= hv]; hc = float(np.mean(tail)) if len(tail) > 0 else hv
+        mu = float(np.mean(pr)); sig = float(np.std(pr))
+        z = norm.ppf(alpha); pvar = mu + z * sig; pcvar = mu - sig * norm.pdf(z) / alpha
+        s = float(skew(pr)); k = float(kurtosis(pr))
+        zcf = z + (z**2-1)*s/6 + (z**3-3*z)*k/24 - (2*z**3-5*z)*s**2/36
+        cfv = mu + zcf * sig
+        stats = pd.DataFrame({"Method": ["Historical","Historical","Parametric (Normal)","Parametric (Normal)","Cornish-Fisher"],
+            "Measure": [f"VaR ({confidence:.0%})",f"CVaR / ES ({confidence:.0%})",f"VaR ({confidence:.0%})",f"CVaR / ES ({confidence:.0%})",f"VaR ({confidence:.0%})"],
+            "Daily (%)": [f"{v*100:.4f}%" for v in [hv,hc,pvar,pcvar,cfv]],
+            "Daily ($)": [f"${v*pv:,.2f}" for v in [hv,hc,pvar,pcvar,cfv]]})
+        return {"stats": stats, "returns": pr, "historical_var": hv, "historical_cvar": hc,
+            "parametric_var": pvar, "parametric_cvar": pcvar, "cornish_fisher_var": cfv,
+            "confidence": confidence, "portfolio_value": pv}

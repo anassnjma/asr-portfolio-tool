@@ -12,7 +12,7 @@ OUTPUT_DIR = PROJECT_ROOT / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Gemini
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # Simulation defaults
 SIMULATION_PATHS = 100_000

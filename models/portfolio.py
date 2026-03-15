@@ -16,7 +16,7 @@ from models.market_data import (
     fetch_current_prices,
     fetch_historical_prices,
 )
-from utils.config import SIMULATION_PATHS, SIMULATION_YEARS, TRADING_DAYS_PER_YEAR, BOOTSTRAP_BLOCK_SIZE
+from models.config import SIMULATION_PATHS, SIMULATION_YEARS, TRADING_DAYS_PER_YEAR, BOOTSTRAP_BLOCK_SIZE
 
 RISK_FREE_RATE = 0.04
 
@@ -194,7 +194,6 @@ class Portfolio:
     def simulate(self, years=SIMULATION_YEARS, n_paths=SIMULATION_PATHS,
                  block_size=BOOTSTRAP_BLOCK_SIZE):
         """Block Bootstrap simulation. Resamples actual historical returns in blocks."""
-        from scipy.stats import skew, kurtosis
 
         _, port_returns, _ = self._get_weights_and_returns()
         initial_value = float(self.total_value())

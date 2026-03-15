@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", message=".*generativeai.*")
 from models.portfolio import Portfolio
 from controllers.agent_controller import DirectController, GeminiController
 from views.cli_view import console, print_error, print_info, print_loading, print_welcome
-from utils.config import get_gemini_api_key, GEMINI_MODEL
+from models.config import get_gemini_api_key, GEMINI_MODEL
 
 
 def parse_args() -> argparse.Namespace:

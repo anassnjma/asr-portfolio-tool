@@ -228,7 +228,7 @@ class GeminiController:
 
     def __init__(self, portfolio: Portfolio, api_key: str) -> None:
         import google.generativeai as genai
-        from utils.config import GEMINI_MODEL
+        from models.config import GEMINI_MODEL
 
         self.portfolio = portfolio
         self.genai = genai

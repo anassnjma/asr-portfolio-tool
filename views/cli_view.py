@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.theme import Theme
 
-from utils.config import OUTPUT_DIR
+from models.config import OUTPUT_DIR
 
 # Rich console with custom theme
 theme = Theme({

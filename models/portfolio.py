@@ -191,43 +191,43 @@ class Portfolio:
             "P&L ($)": result["P&L ($)"].sum()}])
         return pd.concat([result, totals], ignore_index=True)
 
-    def simulate(self, years: int = SIMULATION_YEARS, n_paths: int = SIMULATION_PATHS,
-                 block_size: int = BOOTSTRAP_BLOCK_SIZE) -> dict:
-        """Block Bootstrap simulation of the portfolio.
+    def simulate(self, years=SIMULATION_YEARS, n_paths=SIMULATION_PATHS,
+                 block_size=BOOTSTRAP_BLOCK_SIZE):
+        """Block Bootstrap simulation. Resamples actual historical returns in blocks."""
+        from scipy.stats import skew, kurtosis
 
-        Unlike traditional Monte Carlo (GBM), which assumes normally distributed
-        returns, Block Bootstrap resamples actual historical returns in contiguous
-        blocks. This preserves fat tails, volatility clustering, and correlations.
-        """
         _, port_returns, _ = self._get_weights_and_returns()
         initial_value = float(self.total_value())
         total_days = years * TRADING_DAYS_PER_YEAR
         n_history = len(port_returns)
+
         if n_history < block_size:
             raise ValueError(f"Not enough history ({n_history} days) for block size ({block_size}).")
-        blocks_per_path = int(np.ceil(total_days / block_size))
+
+        # Pick random block start positions for all paths at once
         rng = np.random.default_rng(42)
-        max_start = n_history - block_size
-        start_indices = rng.integers(0, max_start + 1, size=(n_paths, blocks_per_path))
-        all_returns = np.empty((n_paths, total_days))
-        for b in range(blocks_per_path):
-            col_start = b * block_size
-            col_end = min(col_start + block_size, total_days)
-            if col_start >= total_days:
-                break
-            length = col_end - col_start
-            starts = start_indices[:, b]
-            for i in range(length):
-                all_returns[:, col_start + i] = port_returns[starts + i]
+        blocks_needed = int(np.ceil(total_days / block_size))
+        starts = rng.integers(0, n_history - block_size + 1, size=(n_paths, blocks_needed))
+
+        # Build index array: for each block start, generate [start, start+1, ..., start+block_size-1]
+        offsets = np.arange(block_size)
+        block_indices = starts[:, :, None] + offsets[None, None, :]  # (n_paths, blocks_needed, block_size)
+        # Flatten blocks into one long sequence per path, then trim to total_days
+        flat_indices = block_indices.reshape(n_paths, -1)[:, :total_days]
+        # Gather all returns at once — no Python loop
+        all_returns = port_returns[flat_indices]
+
         cumulative = np.cumprod(1 + all_returns, axis=1) * initial_value
         final_values = cumulative[:, -1]
         pct_keys = [5, 10, 25, 50, 75, 90, 95]
         pcts = dict(zip(pct_keys, np.percentile(final_values, pct_keys)))
         prob_loss = float(np.mean(final_values < initial_value)) * 100
+
         mu = float(np.mean(port_returns))
         sigma = float(np.std(port_returns))
         annual_mu = ((1 + mu) ** TRADING_DAYS_PER_YEAR - 1) * 100
         annual_sigma = sigma * np.sqrt(TRADING_DAYS_PER_YEAR) * 100
+
         stats = pd.DataFrame({
             "Metric": ["Initial Portfolio Value", "Method",
                 "Annualised Return (historical)", "Annualised Volatility (historical)",

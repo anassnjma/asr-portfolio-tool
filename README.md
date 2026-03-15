@@ -13,8 +13,8 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
 ```
-paste your Gemini API key in .env
-Then run:
+paste your Gemini API key in .env <br />
+Then run
 ```bash
 python main.py
 ```

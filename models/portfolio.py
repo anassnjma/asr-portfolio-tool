@@ -195,3 +195,34 @@ class Portfolio:
                 rows.append({"Scenario":name,"Period":f"{s} to {e}","Days":len(pr),"Cumulative Return":f"{cum:+.2f}%","Max Drawdown":f"{mdd:.2f}%","Worst Day":f"{float(np.min(pr))*100:.2f}%"})
             except: rows.append({"Scenario":name,"Period":f"{s} to {e}","Days":"N/A","Cumulative Return":"Error","Max Drawdown":"Error","Worst Day":"Error"})
         return pd.DataFrame(rows)
+
+    def risk_parity(self):
+        from scipy.optimize import minimize
+        prices = fetch_historical_prices(self.tickers, period="5y")
+        dr = prices.pct_change().dropna()
+        common = [t for t in self.tickers if t in dr.columns]
+        cov = dr[common].cov().values * TRADING_DAYS_PER_YEAR; n = len(common)
+        def rc(w):
+            pv = np.sqrt(w @ cov @ w); return (w * (cov @ w)) / pv
+        def obj(w):
+            r = rc(w); tgt = np.sqrt(w @ cov @ w) / n; return float(np.sum((r - tgt)**2))
+        cons = [{"type":"eq","fun":lambda w: np.sum(w)-1.0}]
+        bounds = [(0.01,1.0)] * n
+        res = minimize(obj, np.ones(n)/n, method="SLSQP", bounds=bounds, constraints=cons)
+        wrp = res.x
+        if not self._current_prices: self.refresh_market_data()
+        mv = np.array([a.quantity*(self.current_price(a.ticker) or 0) for a in self.assets])
+        wc = np.zeros(n)
+        for i,t in enumerate(common): wc[i] = mv[self.tickers.index(t)]
+        wc = wc/wc.sum() if wc.sum()>0 else wc
+        rcc = rc(wc); rcrp = rc(wrp)
+        mu = dr[common].mean().values * TRADING_DAYS_PER_YEAR
+        def st(w):
+            r=float(w@mu)*100; v=float(np.sqrt(w@cov@w))*100
+            s=(r/100-RISK_FREE_RATE)/(v/100) if v>0 else 0; return r,v,s
+        cr,cv,cs = st(wc); rr,rv,rs = st(wrp)
+        return {
+            "weights": pd.DataFrame({"Ticker":common,"Current (%)":(wc*100).round(2),"Risk Parity (%)":(wrp*100).round(2),"Difference (%)":((wrp-wc)*100).round(2)}),
+            "risk_contributions": pd.DataFrame({"Ticker":common,"Current RC (%)":(rcc/rcc.sum()*100).round(2),"Risk Parity RC (%)":(rcrp/rcrp.sum()*100).round(2)}),
+            "summary": pd.DataFrame({"Portfolio":["Current","Risk Parity"],"Return (%)":[f"{cr:.2f}",f"{rr:.2f}"],"Volatility (%)":[f"{cv:.2f}",f"{rv:.2f}"],"Sharpe Ratio":[f"{cs:.2f}",f"{rs:.2f}"]}),
+            "current_weights":wc,"rp_weights":wrp,"tickers":common}

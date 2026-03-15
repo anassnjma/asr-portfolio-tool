@@ -1,5 +1,4 @@
 ticker,sector,asset_class,quantity,purchase_price
-ASR.AS,Financials,Equity,70,42.50
 ASML,Technology,Equity,15,680.00
 SHELL.AS,Energy,Equity,80,28.50
 UNA.AS,Consumer Staples,Equity,60,48.20

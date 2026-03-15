@@ -55,25 +55,7 @@ def main() -> None:
         sys.exit(1)
 
     # ── Fetch market data ───────────────────────────────────────────
-    print_loading("Connecting to Yahoo Finance…")
-    try:
-        portfolio.refresh_market_data()
-        total = portfolio.total_value()
-        cost = portfolio.total_cost()
-        if total > 0:
-            pnl = total - cost
-            sign = "+" if pnl >= 0 else ""
-            print_info(
-                f"Portfolio value: [bold]${total:,.2f}[/bold]  "
-                f"(cost basis: ${cost:,.2f}, P&L: {sign}${pnl:,.2f})"
-            )
-        else:
-            print_error(
-                "Could not fetch live prices (Yahoo Finance may be rate limiting).\n"
-                "         Try again in 30 seconds, or run with [bold]--no-llm[/bold] and type [bold]refresh[/bold] later."
-            )
-    except Exception as e:
-        print_error(f"Market data unavailable: {e}")
+    print_loading("Connecting to Yahoo Finance")
 
     # ── Initialise controller ───────────────────────────────────────
     if args.no_llm:

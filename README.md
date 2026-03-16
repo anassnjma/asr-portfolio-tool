@@ -25,3 +25,16 @@ python main.py --no-llm
 ```
 
 You can also pass your own portfolio: `python main.py --portfolio my_file.csv`
+
+## What this tool does
+
+The tool lets you analyse a portfolio from the terminal, check historical returns, get an overview of your holdings, see how your allocation is spread out, and run a 15-year simulation with 100k paths. On top of that I added risk metrics, VaR & CVaR using three methods, stress testing against crises like 2008 and COVID, and a Risk Parity optimizer. In LLM mode you just ask things normally and Gemini figures out what to run. In --no-llm mode you type commands like `simulate`, `var`, `stress`, `parity` — type `help` for the full list.
+
+## Portfolio format
+
+CSV with columns: `ticker`, `sector`, `asset_class`, `quantity`, `purchase_price`. The sample file has European stocks (ASML, Shell, Unilever, Adyen, Siemens, Sanofi) and a couple of ETFs.
+
+## Known issues
+
+- Simulation can take a minute with 100k paths
+- Yahoo Finance sometimes rate limits if you restart the app too often, just wait a bit until it works again.

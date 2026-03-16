@@ -245,8 +245,8 @@ class Portfolio:
         cumulative = (1 + port_returns).cumprod()
         running_max = np.maximum.accumulate(cumulative)
         max_dd = float(np.min((cumulative - running_max) / running_max)) * 100
-        downside = port_returns[port_returns < 0]
-        downside_std = float(np.std(downside)) * np.sqrt(TRADING_DAYS_PER_YEAR)
+        downside_returns = np.minimum(port_returns, 0)
+        downside_std = float(np.sqrt(np.mean(downside_returns**2))) * np.sqrt(TRADING_DAYS_PER_YEAR)
         sortino = (np.mean(port_returns) * TRADING_DAYS_PER_YEAR - RISK_FREE_RATE) / downside_std if downside_std > 0 else 0
         return pd.DataFrame({
             "Metric": ["Annualised Return", "Annualised Volatility",

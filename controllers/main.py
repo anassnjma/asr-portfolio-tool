@@ -1,9 +1,16 @@
+#!/usr/bin/env python3
 """CLI entry point for the portfolio assistant."""
 
 from __future__ import annotations
 
-import argparse
+import os
 import sys
+
+# Allow running directly: python controllers/main.py
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import argparse
 import warnings
 
 # Suppress deprecation warning from google-generativeai package

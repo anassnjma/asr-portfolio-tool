@@ -288,47 +288,6 @@ class Portfolio:
             "parametric_var": param_var_pct, "parametric_cvar": param_cvar_pct,
             "cornish_fisher_var": cf_var_pct, "confidence": confidence, "portfolio_value": portfolio_value}
 
-    def stress_test(self) -> pd.DataFrame:
-        """Test portfolio during major historical crises."""
-        SCENARIOS = {
-            "Global Financial Crisis (2008)": ("2008-09-01", "2009-03-09"),
-            "COVID-19 Crash (2020)": ("2020-02-19", "2020-03-23"),
-            "Rate Hike Sell-off (2022)": ("2022-01-03", "2022-10-12"),
-            "EU Debt Crisis (2011)": ("2011-07-01", "2011-11-25"),
-            "Volmageddon (Feb 2018)": ("2018-01-26", "2018-02-08"),
-        }
-        prices = fetch_historical_prices(self.tickers, period="max")
-        daily_returns = prices.pct_change().dropna()
-        if not self._current_prices:
-            self.refresh_market_data()
-        mv = np.array([a.quantity * (self.current_price(a.ticker) or 0) for a in self.assets])
-        weights = mv / mv.sum()
-        common = [t for t in self.tickers if t in daily_returns.columns]
-        w = np.array([weights[self.tickers.index(t)] for t in common])
-        rows = []
-        for name, (start, end) in SCENARIOS.items():
-            try:
-                period_ret = daily_returns[common].loc[start:end]
-                if period_ret.empty:
-                    rows.append({"Scenario": name, "Period": f"{start} to {end}",
-                        "Days": "N/A", "Cumulative Return": "No data",
-                        "Max Drawdown": "No data", "Worst Day": "No data"})
-                    continue
-                port_ret = period_ret.values @ w
-                cum = float(np.prod(1 + port_ret) - 1) * 100
-                cumulative = np.cumprod(1 + port_ret)
-                peak = np.maximum.accumulate(cumulative)
-                max_dd = float(np.min((cumulative - peak) / peak)) * 100
-                rows.append({"Scenario": name, "Period": f"{start} to {end}",
-                    "Days": len(port_ret), "Cumulative Return": f"{cum:+.2f}%",
-                    "Max Drawdown": f"{max_dd:.2f}%",
-                    "Worst Day": f"{float(np.min(port_ret)) * 100:.2f}%"})
-            except Exception:
-                rows.append({"Scenario": name, "Period": f"{start} to {end}",
-                    "Days": "N/A", "Cumulative Return": "Error",
-                    "Max Drawdown": "Error", "Worst Day": "Error"})
-        return pd.DataFrame(rows)
-
     def risk_parity(self) -> dict:
         """Equal risk contribution allocation via scipy optimisation.
 

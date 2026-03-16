@@ -206,7 +206,6 @@ def _tool_var(portfolio: Portfolio, args: dict) -> str:
     view.print_loading("Calculating Value at Risk and Expected Shortfall…")
     result = portfolio.value_at_risk(confidence=0.95)
     view.render_dataframe(result["stats"], title="Value at Risk & Expected Shortfall (95%)")
-    view.plot_var_histogram(result)
     return result["stats"].to_string()
 
 

@@ -223,47 +223,6 @@ def plot_weights_pie(weights_df: pd.DataFrame, group_label: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Chart: VaR histogram with risk thresholds
-# ---------------------------------------------------------------------------
-
-def plot_var_histogram(var_result: dict) -> str:
-    """Plot return distribution with VaR and CVaR thresholds marked."""
-    plt = _get_plt()
-    returns = var_result["returns"] * 100  # convert to percentage
-    conf = var_result["confidence"]
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-
-    # Histogram of daily returns
-    ax.hist(returns, bins=100, density=True, alpha=0.6, color="#64748b", edgecolor="none", label="Daily returns")
-
-    # Mark VaR and CVaR lines
-    hist_var = var_result["historical_var"] * 100
-    hist_cvar = var_result["historical_cvar"] * 100
-    cf_var = var_result["cornish_fisher_var"] * 100
-
-    ax.axvline(hist_var, color="#dc2626", lw=2, ls="--", label=f"Historical VaR ({conf:.0%}): {hist_var:.3f}%")
-    ax.axvline(hist_cvar, color="#ea580c", lw=2, ls=":", label=f"Historical CVaR: {hist_cvar:.3f}%")
-    ax.axvline(cf_var, color="#7c3aed", lw=2, ls="-.", label=f"Cornish-Fisher VaR: {cf_var:.3f}%")
-
-    # Shade the tail
-    ax.axvspan(min(returns), hist_var, alpha=0.15, color="#dc2626")
-
-    ax.set_title(f"Daily Return Distribution with VaR ({conf:.0%})", fontsize=13, fontweight="bold")
-    ax.set_xlabel("Daily Return (%)")
-    ax.set_ylabel("Density")
-    ax.legend(fontsize=9)
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-
-    path = str(OUTPUT_DIR / "var_distribution.png")
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
-    print_info(f"Chart saved → [accent]{path}[/accent]")
-    return path
-
-
-# ---------------------------------------------------------------------------
 # Chart: Risk Parity comparison
 # ---------------------------------------------------------------------------
 

@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
-import argparse
 import sys
+sys.dont_write_bytecode = True
+
+import argparse
 import warnings
 
 # Suppress deprecation warning from google-generativeai package
@@ -15,7 +17,8 @@ from models.portfolio import Portfolio
 from controllers.agent_controller import DirectController, GeminiController
 from views.cli_view import console, print_error, print_info, print_loading, print_welcome
 from models.config import get_gemini_api_key, GEMINI_MODEL
-
+import sys
+sys.dont_write_bytecode = True  # Prevent creation of __pycache__
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(

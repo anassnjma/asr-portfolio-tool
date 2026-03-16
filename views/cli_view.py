@@ -28,7 +28,6 @@ console = Console(theme=theme)
 LOGO = r"""
   ╔═══════════════════════════════════════════╗
   ║       Portfolio Assistant                 ║
-  ║       a.s.r. Vermogensbeheer              ║
   ╚═══════════════════════════════════════════╝
 """
 
@@ -40,8 +39,8 @@ def print_welcome() -> None:
         "  [accent]returns[/accent]  ·  [accent]insights[/accent]  ·  "
         "[accent]weights[/accent]  ·  [accent]simulate[/accent]  ·  "
         "[accent]risk[/accent]  ·  [accent]var[/accent]  ·  "
-        "[accent]stress[/accent]  ·  [accent]parity[/accent]  ·  "
-        "[accent]help[/accent]  ·  [accent]quit[/accent]\n"
+        "[accent]help[/accent]  ·  [accent]parity[/accent]  ·  "
+        "[accent]quit[/accent]\n"
     )
 
 
@@ -54,7 +53,6 @@ def print_help() -> None:
         "[accent]simulate[/accent]                         — Block Bootstrap simulation (15yr)\n"
         "[accent]risk[/accent]                             — Risk metrics (Sharpe, Sortino, drawdown)\n"
         "[accent]var[/accent]                              — Value at Risk & Expected Shortfall\n"
-        "[accent]stress[/accent]                           — Stress test against historical crises\n"
         "[accent]parity[/accent]                           — Risk Parity optimal allocation\n"
         "[accent]refresh[/accent]                          — Re-fetch market data\n"
         "[accent]quit[/accent]                             — Exit the application",
@@ -316,49 +314,3 @@ def plot_risk_parity(rp_result: dict) -> str:
     plt.close(fig)
     print_info(f"Chart saved → [accent]{path}[/accent]")
     return path
-
-
-# ---------------------------------------------------------------------------
-# Chart: Stress test bar chart
-# ---------------------------------------------------------------------------
-
-def plot_stress_test(stress_df: pd.DataFrame) -> str:
-    """Horizontal bar chart of cumulative returns during crisis periods."""
-    plt = _get_plt()
-
-    # Parse numeric values from formatted strings
-    df = stress_df.copy()
-    df["cum_val"] = df["Cumulative Return"].apply(_parse_pct)
-    df = df.dropna(subset=["cum_val"])
-
-    fig, ax = plt.subplots(figsize=(12, max(4, len(df) * 0.8)))
-
-    colors = ["#dc2626" if v < 0 else "#16a34a" for v in df["cum_val"]]
-    bars = ax.barh(df["Scenario"], df["cum_val"], color=colors, edgecolor="none", height=0.6)
-
-    for bar, val in zip(bars, df["cum_val"]):
-        ax.text(
-            bar.get_width() + (0.5 if val >= 0 else -0.5), bar.get_y() + bar.get_height() / 2,
-            f"{val:+.1f}%", va="center", ha="left" if val >= 0 else "right", fontsize=10,
-        )
-
-    ax.set_xlabel("Cumulative Return (%)")
-    ax.set_title("Stress Test: Portfolio During Historical Crises", fontsize=13, fontweight="bold")
-    ax.axvline(0, color="gray", lw=0.8)
-    ax.grid(True, alpha=0.3, axis="x")
-    ax.invert_yaxis()
-    fig.tight_layout()
-
-    path = str(OUTPUT_DIR / "stress_test.png")
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
-    print_info(f"Chart saved → [accent]{path}[/accent]")
-    return path
-
-
-def _parse_pct(s: str) -> float | None:
-    """Parse a formatted percentage string like '+3.45%' into float."""
-    try:
-        return float(str(s).replace("%", "").replace("+", ""))
-    except (ValueError, TypeError):
-        return None

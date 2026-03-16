@@ -20,15 +20,6 @@ from models.config import SIMULATION_PATHS, SIMULATION_YEARS, TRADING_DAYS_PER_Y
 
 RISK_FREE_RATE = 0.04
 
-STRESS_SCENARIOS = {
-    "Global Financial Crisis (2008)": ("2008-09-01", "2009-03-09"),
-    "COVID-19 Crash (2020)": ("2020-02-19", "2020-03-23"),
-    "Rate Hike Sell-off (2022)": ("2022-01-03", "2022-10-12"),
-    "EU Debt Crisis (2011)": ("2011-07-01", "2011-11-25"),
-    "Volmageddon (Feb 2018)": ("2018-01-26", "2018-02-08"),
-}
-
-
 @dataclass
 class Asset:
     """A single holding in the portfolio."""

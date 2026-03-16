@@ -92,15 +92,6 @@ TOOL_DEFINITIONS = [
         "parameters": {"type": "object", "properties": {}},
     },
     {
-        "name": "show_stress_test",
-        "description": (
-            "Stress test the portfolio against historical crisis periods: "
-            "2008 GFC, COVID-19 crash, 2022 rate hikes, EU debt crisis, "
-            "and Volmageddon. Shows cumulative return and max drawdown."
-        ),
-        "parameters": {"type": "object", "properties": {}},
-    },
-    {
         "name": "show_risk_parity",
         "description": (
             "Compute a Risk Parity allocation where each asset contributes "
@@ -133,7 +124,6 @@ def execute_tool(portfolio: Portfolio, name: str, args: dict) -> str:
         "run_simulation": _tool_simulation,
         "show_risk_metrics": _tool_risk,
         "show_value_at_risk": _tool_var,
-        "show_stress_test": _tool_stress,
         "show_risk_parity": _tool_risk_parity,
     }
     handler = dispatch.get(name)
@@ -201,14 +191,6 @@ def _tool_var(portfolio: Portfolio, args: dict) -> str:
     return result["stats"].to_string()
 
 
-def _tool_stress(portfolio: Portfolio, args: dict) -> str:
-    view.print_loading("Running stress test against historical crises…")
-    df = portfolio.stress_test()
-    view.render_dataframe(df, title="Stress Test Results")
-    view.plot_stress_test(df)
-    return df.to_string()
-
-
 def _tool_risk_parity(portfolio: Portfolio, args: dict) -> str:
     view.print_loading("Computing Risk Parity allocation…")
     result = portfolio.risk_parity()
@@ -247,7 +229,6 @@ class GeminiController:
                 "key takeaways. Be professional, concise, and data-driven. "
                 "If the question doesn't require a tool, answer directly. "
                 "You have access to industry-standard tools including VaR, "
-                "stress testing, and risk parity allocation."
             ),
         )
         self.chat = self.model.start_chat(enable_automatic_function_calling=False)
@@ -398,9 +379,6 @@ class DirectController:
 
         elif cmd in ("var", "cvar", "es", "expected_shortfall", "value_at_risk"):
             execute_tool(self.portfolio, "show_value_at_risk", {})
-
-        elif cmd in ("stress", "stresstest", "crisis"):
-            execute_tool(self.portfolio, "show_stress_test", {})
 
         elif cmd in ("parity", "riskparity", "rp", "equalrisk"):
             execute_tool(self.portfolio, "show_risk_parity", {})

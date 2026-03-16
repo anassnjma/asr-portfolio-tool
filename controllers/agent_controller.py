@@ -10,7 +10,8 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 from models.portfolio import Portfolio
 from views import cli_view as view
-
+import time
+import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Gemini tool declarations
@@ -382,6 +383,10 @@ class DirectController:
 
         elif cmd in ("parity", "riskparity", "rp", "equalrisk"):
             execute_tool(self.portfolio, "show_risk_parity", {})
+        
+        elif cmd in ("compare", "peers", "peer", "competitors"):
+            query = " ".join(tokens[1:])
+            self._compare(query)
 
         elif cmd in ("help", "h", "?", "commands"):
             view.print_help()
@@ -397,3 +402,66 @@ class DirectController:
             view.print_error(
                 f"Unknown command: '{cmd}'. Type [bold]help[/bold] for available commands."
             )
+    def _compare(self, ticker: str) -> None:
+        try:
+            import financedatabase as fd
+            import yfinance as yf
+        except ImportError:
+            view.print_error("Missing packages. Run: pip install financedatabase yfinance")
+            return
+        if not ticker:
+            view.print_info("Usage: compare <ticker>  e.g. 'compare ASML'")
+            return
+        ticker = ticker.upper().strip()
+        view.print_loading(f"Finding peers for {ticker} and fetching live data…")
+        try:
+            equities = fd.Equities()
+            all_eq = equities.select()
+            if ticker not in all_eq.index:
+                matches = [t for t in all_eq.index if t.startswith(ticker.split(".")[0])]
+                if matches:
+                    ticker = matches[0]
+                else:
+                    view.print_error(f"{ticker} not found in database")
+                    return
+            industry = all_eq.loc[ticker, "industry"]
+            country = all_eq.loc[ticker, "country"]
+            view.print_info(f"{ticker} ({all_eq.loc[ticker, 'name']}) — {industry}, {country}")
+            peers = all_eq[all_eq["industry"] == industry]
+            same_country = peers[peers["country"] == country].index.tolist()
+            other = peers[peers["country"] != country].index.tolist()
+            seen_names = {all_eq.loc[ticker, "name"]}
+            peer_tickers = [ticker]
+            for t in same_country + other:
+                if len(peer_tickers) >= 6:
+                    break
+                name = all_eq.loc[t, "name"]
+                if t != ticker and name not in seen_names:
+                    seen_names.add(name)
+                    peer_tickers.append(t)
+            view.print_loading("Fetching live market data from Yahoo Finance…")
+            rows = []
+            for t in peer_tickers:
+                try:
+                    info = yf.Ticker(t).info
+                    dy = info.get("dividendYield")
+                    if dy and dy > 1:
+                        dy = dy / 100
+                    rows.append({
+                        "Ticker": t,
+                        "Name": (info.get("shortName") or info.get("longName") or t)[:30],
+                        "Price": info.get("currentPrice") or info.get("regularMarketPrice"),
+                        "Market Cap (B)": round(info.get("marketCap", 0) / 1e9, 1) if info.get("marketCap") else None,
+                        "P/E": round(info.get("trailingPE"), 2) if info.get("trailingPE") else None,
+                        "Div Yield (%)": round(dy * 100, 2) if dy else None,
+                        "Country": all_eq.loc[t, "country"] if t in all_eq.index else "N/A",
+                    })
+                except Exception:
+                    rows.append({"Ticker": t, "Name": "Error fetching data"})
+                time.sleep(0.3)
+            if rows:
+                view.render_dataframe(pd.DataFrame(rows), title=f"Peer Comparison — {industry}")
+            else:
+                view.print_error("Could not fetch data for any peers")
+        except Exception as e:
+            view.print_error(f"Compare failed: {e}")

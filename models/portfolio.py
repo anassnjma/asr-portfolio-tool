@@ -239,7 +239,8 @@ class Portfolio:
     def risk_metrics(self) -> pd.DataFrame:
         """Sharpe, Sortino, max drawdown, skewness, excess kurtosis."""
         _, port_returns, _ = self._get_weights_and_returns()
-        ann_return = float(np.mean(port_returns)) * TRADING_DAYS_PER_YEAR * 100
+        mu = float(np.mean(port_returns))
+        ann_return = ((1 + mu) ** TRADING_DAYS_PER_YEAR - 1) * 100
         ann_vol = float(np.std(port_returns)) * np.sqrt(TRADING_DAYS_PER_YEAR) * 100
         sharpe = (ann_return / 100 - RISK_FREE_RATE) / (ann_vol / 100) if ann_vol > 0 else 0
         cumulative = (1 + port_returns).cumprod()
@@ -247,7 +248,8 @@ class Portfolio:
         max_dd = float(np.min((cumulative - running_max) / running_max)) * 100
         downside_returns = np.minimum(port_returns, 0)
         downside_std = float(np.sqrt(np.mean(downside_returns**2))) * np.sqrt(TRADING_DAYS_PER_YEAR)
-        sortino = (np.mean(port_returns) * TRADING_DAYS_PER_YEAR - RISK_FREE_RATE) / downside_std if downside_std > 0 else 0
+        ann_return_decimal = (1 + mu) ** TRADING_DAYS_PER_YEAR - 1
+        sortino = (ann_return_decimal - RISK_FREE_RATE) / downside_std if downside_std > 0 else 0
         return pd.DataFrame({
             "Metric": ["Annualised Return", "Annualised Volatility",
                 "Sharpe Ratio (rf=4%)", "Sortino Ratio (rf=4%)",

@@ -220,6 +220,27 @@ def _tool_risk_parity(portfolio: Portfolio, args: dict) -> str:
     return result["summary"].to_string() + "\n\n" + result["weights"].to_string()
 
 
+def _fetch_eur_rate(currency: str) -> float | None:
+    """Fetch the live exchange rate from *currency* to EUR.
+
+    Returns the multiplier so that ``price_in_currency * rate = price_in_eur``.
+    Returns 1.0 for EUR and None if the rate cannot be fetched.
+    """
+    import yfinance as yf
+
+    currency = currency.upper()
+    if currency == "EUR":
+        return 1.0
+    try:
+        pair = f"{currency}EUR=X"
+        hist = yf.Ticker(pair).history(period="5d")
+        if hist.empty:
+            return None
+        return float(hist["Close"].dropna().iloc[-1])
+    except Exception:
+        return None
+
+
 def _tool_compare_peers(portfolio: Portfolio, args: dict) -> str:
     """Find industry peers for a ticker and show live comparison data."""
     import time as _time
@@ -266,30 +287,52 @@ def _tool_compare_peers(portfolio: Portfolio, args: dict) -> str:
                 seen_names.add(name)
                 peer_tickers.append(t)
 
-        view.print_loading("Fetching live market data from Yahoo Finance…")
+        view.print_loading("Fetching live market data and converting prices to EUR…")
+
+        # Cache exchange rates so we only fetch each currency pair once
+        eur_rates: dict[str, float | None] = {"EUR": 1.0}
+
         rows = []
         for t in peer_tickers:
             try:
                 info = yf.Ticker(t).info
+                price = info.get("currentPrice") or info.get("regularMarketPrice")
+                currency = (info.get("currency") or "").upper()
+
+                # Fetch exchange rate (cached per currency)
+                if currency and currency not in eur_rates:
+                    eur_rates[currency] = _fetch_eur_rate(currency)
+                rate = eur_rates.get(currency)
+
+                # Skip peer if we can't convert to EUR
+                if price is None or rate is None:
+                    continue
+
+                price_eur = round(price * rate, 2)
+                mcap = info.get("marketCap")
+                mcap_eur = round(mcap * rate / 1e9, 1) if mcap else None
+
                 dy = info.get("dividendYield")
                 if dy and dy > 1:
                     dy = dy / 100
+
                 rows.append({
                     "Ticker": t,
                     "Name": (info.get("shortName") or info.get("longName") or t)[:30],
-                    "Price": info.get("currentPrice") or info.get("regularMarketPrice"),
-                    "Market Cap (B)": round(info.get("marketCap", 0) / 1e9, 1) if info.get("marketCap") else None,
+                    "Price (EUR)": price_eur,
+                    "Market Cap B (EUR)": mcap_eur,
                     "P/E": round(info.get("trailingPE"), 2) if info.get("trailingPE") else None,
                     "Div Yield (%)": round(dy * 100, 2) if dy else None,
                     "Country": all_eq.loc[t, "country"] if t in all_eq.index else "N/A",
                 })
             except Exception:
-                rows.append({"Ticker": t, "Name": "Error fetching data"})
+                # Skip peers that fail entirely
+                pass
             _time.sleep(0.3)
 
         if rows:
             df = pd.DataFrame(rows)
-            view.render_dataframe(df, title=f"Peer Comparison — {industry}")
+            view.render_dataframe(df, title=f"Peer Comparison — {industry} (all prices in EUR)")
             return df.to_string()
         else:
             view.print_error("Could not fetch data for any peers")

@@ -32,34 +32,22 @@ The tool lets you analyse a portfolio from the terminal, check historical return
 
 ## Functions
 
-**Historical Returns** — Shows the percentage return of each asset over a chosen period. 
-Supports monthly, quarterly, and yearly frequency. Displays the last 12 periods in a table.
+**Historical Returns** — Shows the percentage return of each asset over a chosen period. Supports monthly, quarterly, and yearly frequency. Displays the last 12 periods in a table and plot.
 
-**Portfolio Insights** — Full overview of every holding: asset name, sector, asset class, 
-quantity, purchase price, cost basis, current market price, current market value, and P&L 
-in both dollars and percentage.
+**Portfolio Insights** — Full overview of every holding: asset name, sector, asset class, quantity, purchase price, cost basis, current market price, current market value, and P&L in both dollars and percentage.
 
-**Portfolio Weights** — Shows total portfolio value and the relative weight of each position. 
-Can group weights by sector or asset class.
+**Portfolio Weights** — Shows total portfolio value and the relative weight of each position. Can group weights by sector or asset class. It also returns a chart of portfolio weights, grouped by sector or asset class.
 
-**Simulation** — Block Bootstrap simulation over 15 years with 100,000 paths. Instead of 
-assuming normally distributed returns like a Monte Carlo simulation would, it resamples historical 
-returns in blocks of 21 trading days (one trading month), preserving fat tails and volatility clustering.
+**Simulation** — Block Bootstrap simulation over 15 years with 100,000 paths. Instead of assuming normally distributed returns like a Monte Carlo simulation would, it resamples historical returns in blocks of 21 trading days (one trading month), preserving fat tails and volatility clustering. It also returns plot showing all simulation paths.
 
-**Risk Metrics** — Annualised return and volatility, Sharpe ratio, Sortino ratio, maximum 
-drawdown, skewness, and excess kurtosis based on 5 years of historical data.
+**Risk Metrics** — Annualised return and volatility, Sharpe ratio, Sortino ratio, maximum drawdown, skewness, and excess kurtosis based on 5 years of historical data.
 
-**Value at Risk** — Daily VaR and CVaR (Expected Shortfall) at 95% confidence 
-using the historical simulation method. Plots a return distribution histogram with the 
+**Value at Risk** — Daily VaR and CVaR (Expected Shortfall) at 95% confidence using the historical simulation method. Plots a return distribution histogram with the 
 VaR and CVaR thresholds marked.
 
-**Risk Parity** — Computes an optimal allocation where each asset contributes equally to 
-total portfolio risk using scipy's SLSQP optimiser. Compares the suggested weights and 
-risk contributions side by side against your current allocation.
+**Risk Parity** — Computes an optimal allocation where each asset contributes equally to total portfolio risk using scipy's SLSQP optimiser. Compares the suggested weights and risk contributions side by side against your current allocation. Also gives charts comparing current weights against risk parity weights and their risk contributions
 
-**Peer Comparison** — Given any ticker, finds industry peers using the FinanceDatabase package and 
-fetches live data from Yahoo Finance. All prices and market caps are converted to EUR using 
-live exchange rates.
+**Peer Comparison** — Given any ticker, finds industry peers using the FinanceDatabase package and fetches live data from Yahoo Finance. All prices and market caps are converted to EUR using live exchange rates.
 
 ## Available commands (--no-llm mode)
 

@@ -312,9 +312,14 @@ def _tool_compare_peers(portfolio: Portfolio, args: dict) -> str:
                 mcap = info.get("marketCap")
                 mcap_eur = round(mcap * rate / 1e9, 1) if mcap else None
 
-                dy = info.get("dividendYield")
-                if dy and dy > 1:
-                    dy = dy / 100
+                # Compute dividend yield from rate / price to avoid
+                # inconsistent formatting of the dividendYield field.
+                div_rate = info.get("trailingAnnualDividendRate")
+                raw_price = price  # price in original currency
+                if div_rate and raw_price and raw_price > 0:
+                    div_yield_pct = round(div_rate / raw_price * 100, 2)
+                else:
+                    div_yield_pct = None
 
                 rows.append({
                     "Ticker": t,
@@ -322,7 +327,7 @@ def _tool_compare_peers(portfolio: Portfolio, args: dict) -> str:
                     "Price (EUR)": price_eur,
                     "Market Cap B (EUR)": mcap_eur,
                     "P/E": round(info.get("trailingPE"), 2) if info.get("trailingPE") else None,
-                    "Div Yield (%)": round(dy * 100, 2) if dy else None,
+                    "Div Yield (%)": div_yield_pct,
                     "Country": all_eq.loc[t, "country"] if t in all_eq.index else "N/A",
                 })
             except Exception:

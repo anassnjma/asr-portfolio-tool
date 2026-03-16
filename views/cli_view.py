@@ -39,8 +39,8 @@ def print_welcome() -> None:
         "  [accent]returns[/accent]  ·  [accent]insights[/accent]  ·  "
         "[accent]weights[/accent]  ·  [accent]simulate[/accent]  ·  "
         "[accent]risk[/accent]  ·  [accent]var[/accent]  ·  "
-        "[accent]help[/accent]  ·  [accent]parity[/accent]  ·  "
-        "[accent]quit[/accent]\n"
+        "[accent]parity[/accent]  ·  [accent]compare[/accent]  ·  "
+        "[accent]help[/accent]  ·  [accent]quit[/accent]\n"
     )
 
 
@@ -52,8 +52,9 @@ def print_help() -> None:
         "[accent]weights sector|asset_class[/accent]       — Weights grouped by category\n"
         "[accent]simulate[/accent]                         — Block Bootstrap simulation (15yr)\n"
         "[accent]risk[/accent]                             — Risk metrics (Sharpe, Sortino, drawdown)\n"
-        "[accent]var[/accent]                              — Value at Risk & Expected Shortfall\n"
+        "[accent]var[/accent]                              — Historical Value at Risk & Expected Shortfall\n"
         "[accent]parity[/accent]                           — Risk Parity optimal allocation\n"
+        "[accent]compare <ticker>[/accent]                 — Peer comparison (e.g. compare ASML)\n"
         "[accent]refresh[/accent]                          — Re-fetch market data\n"
         "[accent]quit[/accent]                             — Exit the application",
         title="Available Commands",

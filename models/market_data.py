@@ -15,20 +15,6 @@ MAX_RETRIES = 3
 RETRY_DELAY = 10  # seconds
 
 
-def _retry(func, *args, retries=MAX_RETRIES, **kwargs):
-    """Retry a function on rate limit errors."""
-    for attempt in range(retries):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            if ("Rate" in str(e) or "rate" in str(e) or "429" in str(e)) and attempt < retries - 1:
-                wait = RETRY_DELAY * (attempt + 1)
-                print(f"  ⏳ Yahoo Finance rate limited, retrying in {wait}s…")
-                time.sleep(wait)
-            else:
-                raise
-
-
 def fetch_current_price(ticker: str) -> float | None:
     """Fetch the most recent closing price for a single ticker."""
     if ticker in _price_cache:

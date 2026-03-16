@@ -373,7 +373,9 @@ class GeminiController:
                 "output, provide a brief, insightful summary highlighting the "
                 "key takeaways. Be professional, concise, and data-driven. "
                 "If the question doesn't require a tool, answer directly. "
-                "You have access to industry-standard tools including VaR, "
+                "You have access to tools for historical returns, portfolio insights, "
+                "weights, simulation, risk metrics, Value at Risk, Risk Parity, "
+                "and peer comparison."
             ),
         )
         self.chat = self.model.start_chat(enable_automatic_function_calling=False)

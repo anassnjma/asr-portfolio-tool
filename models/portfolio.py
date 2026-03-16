@@ -127,13 +127,13 @@ class Portfolio:
         w = np.array([weights[self.tickers.index(t)] for t in common])
         return w, daily_returns[common].values @ w, common
 
-    def historical_returns(self, freq: str = "M") -> pd.DataFrame:
+    def historical_returns(self, freq: str = "ME") -> pd.DataFrame:
         """Compute periodic percentage returns for each asset."""
         prices = fetch_historical_prices(self.tickers)
         resampled = prices.resample(freq).last()
         returns = resampled.pct_change().dropna(how="all") * 100
         returns = returns.round(2)
-        fmt = {"M": "%Y-%m", "ME": "%Y-%m", "QE": "%Y-Q%q", "Q": "%Y-Q%q", "YE": "%Y", "Y": "%Y"}
+        fmt = {"ME": "%Y-%m", "QE": "%Y-Q%q", "YE": "%Y"}
         returns.index = returns.index.strftime(fmt.get(freq, "%Y-%m"))
         return returns
 

@@ -4,7 +4,7 @@ Tool for analysing investment portfolios. Uses Gemini as the LLM to interpret qu
 
 ## Setup
 
-You need Python 3.10+ and a Gemini API key (this tool is set for gemini 2.5 fast (in case your api doesnt have the 2.5 fast model you can change this to something else in the config file).
+You need Python 3.10+ and a Gemini API key
 ```bash
 git clone https://github.com/anassnjma/asr-portfolio-tool.git
 cd asr-portfolio-tool
@@ -24,8 +24,8 @@ Or without the LLM (no API key needed):
 python main.py --no-llm
 ```
 
-You can also pass your own portfolio: `python main.py --portfolio my_file.csv`
-
+You can also pass your own portfolio: `python main.py --portfolio my_file.csv`. <br />
+This tool is set for gemini 2.5 fast, in case your api doesnt have the 2.5 fast model you can change this to another model in the config file.
 ## What this tool does
 
 The tool lets you analyse a portfolio from the terminal, check historical returns, get an overview of your holdings, see how your allocation is spread out, and run a 15-year simulation with 100k paths. On top of that I added risk metrics, VaR & CVaR using three methods, stress testing against crises like 2008 and COVID, and a Risk Parity optimizer. In LLM mode you just ask things normally and Gemini figures out what to run. In --no-llm mode you type commands like `simulate`, `var`, `stress`, `parity`. Type `help` in the terminal for the full list of options.
